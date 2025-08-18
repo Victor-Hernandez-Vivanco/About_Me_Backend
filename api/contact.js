@@ -50,7 +50,7 @@ async function createTransporter() {
 
   const accessToken = await oauth2Client.getAccessToken();
 
-  return nodemailer.createTransporter({
+  return nodemailer.createTransport({
     service: "gmail",
     auth: {
       type: "OAuth2",
