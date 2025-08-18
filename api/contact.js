@@ -1,6 +1,6 @@
-const mongoose = require("mongoose");
-const nodemailer = require("nodemailer");
-const { google } = require("googleapis");
+import mongoose from "mongoose";
+import nodemailer from "nodemailer";
+import { google } from "googleapis";
 
 // MongoDB connection
 const MONGODB_URI = process.env.MONGO_URI;
@@ -72,11 +72,13 @@ export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
+  // Handle preflight OPTIONS request
   if (req.method === "OPTIONS") {
     res.status(200).end();
     return;
   }
 
+  // Only allow POST requests for contact form
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
@@ -84,6 +86,7 @@ export default async function handler(req, res) {
   try {
     const { name, email, message } = req.body;
 
+    // Validate required fields
     if (!name || !email || !message) {
       return res.status(400).json({ error: "All fields are required" });
     }
@@ -91,13 +94,19 @@ export default async function handler(req, res) {
     // Connect to database
     await connectToDatabase();
 
-    // Save contact
-    const contact = new Contact({ name, email, message });
+    // Save contact to database
+    const contact = new Contact({
+      name,
+      email,
+      message,
+    });
+
     await contact.save();
 
-    // Send email
+    // Send email notification
     try {
       const transporter = await createTransporter();
+
       const mailOptions = {
         from: process.env.EMAIL_USER,
         to: process.env.EMAIL_TO,
@@ -106,22 +115,27 @@ export default async function handler(req, res) {
           <h2>Nuevo mensaje de contacto</h2>
           <p><strong>Nombre:</strong> ${name}</p>
           <p><strong>Email:</strong> ${email}</p>
-          <p><strong>Mensaje:</strong> ${message}</p>
+          <p><strong>Mensaje:</strong></p>
+          <p>${message}</p>
           <p><strong>Fecha:</strong> ${new Date().toLocaleString()}</p>
         `,
       };
+
       await transporter.sendMail(mailOptions);
     } catch (emailError) {
-      console.error("Email error:", emailError);
+      console.error("Email sending error:", emailError);
+      // Don't fail the request if email fails, just log it
     }
 
-    res
-      .status(200)
-      .json({ success: true, message: "Message sent successfully!" });
+    res.status(200).json({
+      success: true,
+      message: "Message sent successfully!",
+    });
   } catch (error) {
     console.error("Contact form error:", error);
-    res
-      .status(500)
-      .json({ error: "Internal server error", details: error.message });
+    res.status(500).json({
+      error: "Internal server error",
+      details: error.message,
+    });
   }
 }
