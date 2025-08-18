@@ -103,39 +103,23 @@ async function connectDB() {
   return conn;
 }
 
-export default async function handler(req, res) {
-  console.log("===> Nueva petición recibida:", req.method, req.url);
-
+export default function handler(req, res) {
   res.setHeader(
     "Access-Control-Allow-Origin",
     "https://victor-hernandez-vivanco.github.io"
   );
-  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
   if (req.method === "OPTIONS") {
-    console.log("===> Respondiendo a preflight OPTIONS");
-    res.status(200).json({ ok: true, msg: "CORS test OK" });
+    res.status(200).end();
     return;
   }
 
   if (req.method !== "POST") {
-    console.log("===> Método no permitido:", req.method);
     res.status(405).json({ error: "Method Not Allowed" });
     return;
   }
 
-  try {
-    // Aquí va tu lógica real (conexión a DB, guardado, envío de correo, etc.)
-    res.status(200).json({ ok: true });
-  } catch (err) {
-    res.setHeader(
-      "Access-Control-Allow-Origin",
-      "https://victor-hernandez-vivanco.github.io"
-    );
-    res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-    console.error("===> Error en handler:", err);
-    res.status(500).json({ ok: false, error: err.message });
-  }
+  res.status(200).json({ ok: true, msg: "CORS test OK" });
 }
