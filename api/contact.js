@@ -77,6 +77,13 @@ async function createTransporter() {
 }
 
 async function handler(req, res) {
+  console.log("=== REQUEST DEBUG ===");
+  console.log("Method:", req.method);
+  console.log("Headers:", req.headers);
+  console.log("Body:", req.body);
+  console.log("Body type:", typeof req.body);
+  console.log("===================");
+
   // Set CORS headers
   res.setHeader(
     "Access-Control-Allow-Origin",
