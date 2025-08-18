@@ -22,7 +22,10 @@ async function connectDB() {
 }
 
 export default async function handler(req, res) {
-  res.setHeader("Access-Control-Allow-Origin", "*"); // O tu dominio de GitHub Pages
+  res.setHeader(
+    "Access-Control-Allow-Origin",
+    "https://victor-hernandez-vivanco.github.io/about-me/"
+  ); // O tu dominio de GitHub Pages
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
   if (req.method === "OPTIONS") {
