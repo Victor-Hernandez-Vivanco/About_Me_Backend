@@ -105,7 +105,7 @@ export default async function handler(req, res) {
 
     // Send email notification
     try {
-      const transporter = await createTransporter();
+      const transporter = nodemailer.createTransport();
 
       const mailOptions = {
         from: process.env.EMAIL_USER,
