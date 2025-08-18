@@ -118,6 +118,10 @@ export default async function handler(req, res) {
     res.status(200).json({ ok: true, msg: "CORS test OK" });
     return;
   }
+  if (req.method !== "POST") {
+    res.status(405).json({ error: "Method Not Allowed" });
+    return;
+  }
 
   if (req.method !== "POST") {
     console.log("===> Método no permitido:", req.method);
