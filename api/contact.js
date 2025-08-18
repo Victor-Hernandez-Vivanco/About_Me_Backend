@@ -118,10 +118,6 @@ export default async function handler(req, res) {
     res.status(200).json({ ok: true, msg: "CORS test OK" });
     return;
   }
-  if (req.method !== "POST") {
-    res.status(405).json({ error: "Method Not Allowed" });
-    return;
-  }
 
   if (req.method !== "POST") {
     console.log("===> Método no permitido:", req.method);
@@ -130,16 +126,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    await connectDB();
-    const Message =
-      mongoose.models.Message || mongoose.model("Message", MessageSchema);
-    const { name, email, message } = req.body;
-    console.log("===> Datos recibidos:", { name, email, message });
-    const newMsg = new Message({ name, email, message });
-    await newMsg.save();
-
-    // ... (resto igual)
-
+    // Aquí va tu lógica real (conexión a DB, guardado, envío de correo, etc.)
     res.status(200).json({ ok: true });
   } catch (err) {
     res.setHeader(
