@@ -1,6 +1,6 @@
-const mongoose = require("mongoose");
-const nodemailer = require("nodemailer");
-const { google } = require("googleapis");
+import mongoose from "mongoose";
+import { createTransport } from "nodemailer";
+import { google } from "googleapis";
 
 // MongoDB connection
 const MONGODB_URI = process.env.MONGO_URI;
@@ -60,7 +60,7 @@ async function createTransporter() {
     throw new Error("Failed to get access token");
   }
 
-  const transporter = nodemailer.createTransport({
+  const transporter = createTransport({
     service: "gmail",
     auth: {
       type: "OAuth2",
@@ -173,4 +173,4 @@ async function handler(req, res) {
   }
 }
 
-module.exports = handler;
+export default handler;
