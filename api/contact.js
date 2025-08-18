@@ -1,109 +1,70 @@
-// import mongoose from "mongoose";
-// import nodemailer from "nodemailer";
-// import { google } from "googleapis";
+const mongoose = require("mongoose");
+const nodemailer = require("nodemailer");
+const { google } = require("googleapis");
 
-// let conn = null;
+// MongoDB connection
+const MONGODB_URI = process.env.MONGO_URI;
+let cachedConnection = null;
 
-// const MessageSchema = new mongoose.Schema({
-//   name: String,
-//   email: String,
-//   message: String,
-//   date: { type: Date, default: Date.now },
-// });
-
-// async function connectDB() {
-//   if (!conn) {
-//     conn = await mongoose.connect(process.env.MONGO_URI, {
-//       useNewUrlParser: true,
-//       useUnifiedTopology: true,
-//     });
-//   }
-//   return conn;
-// }
-
-// export default async function handler(req, res) {
-//   res.setHeader(
-//     "Access-Control-Allow-Origin",
-//     "https://victor-hernandez-vivanco.github.io"
-//   ); // O tu dominio de GitHub Pages
-//   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-//   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-//   if (req.method === "OPTIONS") {
-//     res.status(200).end();
-//     return;
-//   }
-//   if (req.method !== "POST") {
-//     return res.status(405).json({ error: "Method Not Allowed" });
-//   }
-
-//   try {
-//     await connectDB();
-//     const Message =
-//       mongoose.models.Message || mongoose.model("Message", MessageSchema);
-//     const { name, email, message } = req.body;
-//     const newMsg = new Message({ name, email, message });
-//     await newMsg.save();
-
-//     // Configuración OAuth2 para Gmail
-//     const oAuth2Client = new google.auth.OAuth2(
-//       process.env.CLIENT_ID,
-//       process.env.CLIENT_SECRET,
-//       "https://developers.google.com/oauthplayground"
-//     );
-//     oAuth2Client.setCredentials({
-//       refresh_token: process.env.REFRESH_TOKEN.replace(/"/g, ""),
-//     });
-//     const accessToken = await oAuth2Client.getAccessToken();
-
-//     const transporter = nodemailer.createTransport({
-//       service: "gmail",
-//       auth: {
-//         type: "OAuth2",
-//         user: process.env.EMAIL_USER,
-//         clientId: process.env.CLIENT_ID,
-//         clientSecret: process.env.CLIENT_SECRET,
-//         refreshToken: process.env.REFRESH_TOKEN.replace(/"/g, ""),
-//         accessToken: accessToken.token,
-//       },
-//     });
-
-//     await transporter.sendMail({
-//       from: `"Contacto Web" <${process.env.EMAIL_USER}>`,
-//       to: process.env.EMAIL_TO,
-//       subject: "Nuevo mensaje de contacto",
-//       text: `Nombre: ${name}\nEmail: ${email}\nMensaje: ${message}`,
-//     });
-
-//     res.status(200).json({ ok: true });
-//   } catch (err) {
-//     res.status(500).json({ ok: false, error: err.message });
-//   }
-// }
-
-import mongoose from "mongoose";
-import nodemailer from "nodemailer";
-import { google } from "googleapis";
-
-let conn = null;
-
-const MessageSchema = new mongoose.Schema({
-  name: String,
-  email: String,
-  message: String,
-  date: { type: Date, default: Date.now },
-});
-
-async function connectDB() {
-  if (!conn) {
-    conn = await mongoose.connect(process.env.MONGO_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    });
+async function connectToDatabase() {
+  if (cachedConnection) {
+    return cachedConnection;
   }
-  return conn;
+
+  if (!MONGODB_URI) {
+    throw new Error("MongoDB URI not found in environment variables");
+  }
+
+  try {
+    const connection = await mongoose.connect(MONGODB_URI);
+    cachedConnection = connection;
+    return connection;
+  } catch (error) {
+    console.error("Database connection error:", error);
+    throw error;
+  }
 }
 
-export default function handler(req, res) {
+// Contact schema
+const contactSchema = new mongoose.Schema({
+  name: { type: String, required: true },
+  email: { type: String, required: true },
+  message: { type: String, required: true },
+  createdAt: { type: Date, default: Date.now },
+});
+
+const Contact =
+  mongoose.models.Contact || mongoose.model("Contact", contactSchema);
+
+// Email setup with OAuth2
+async function createTransporter() {
+  const oauth2Client = new google.auth.OAuth2(
+    process.env.CLIENT_ID,
+    process.env.CLIENT_SECRET,
+    "https://developers.google.com/oauthplayground"
+  );
+
+  oauth2Client.setCredentials({
+    refresh_token: process.env.REFRESH_TOKEN,
+  });
+
+  const accessToken = await oauth2Client.getAccessToken();
+
+  return nodemailer.createTransporter({
+    service: "gmail",
+    auth: {
+      type: "OAuth2",
+      user: process.env.EMAIL_USER,
+      clientId: process.env.CLIENT_ID,
+      clientSecret: process.env.CLIENT_SECRET,
+      refreshToken: process.env.REFRESH_TOKEN,
+      accessToken: accessToken.token,
+    },
+  });
+}
+
+export default async function handler(req, res) {
+  // Set CORS headers
   res.setHeader(
     "Access-Control-Allow-Origin",
     "https://victor-hernandez-vivanco.github.io"
@@ -117,9 +78,50 @@ export default function handler(req, res) {
   }
 
   if (req.method !== "POST") {
-    res.status(405).json({ error: "Method Not Allowed" });
-    return;
+    return res.status(405).json({ error: "Method not allowed" });
   }
 
-  res.status(200).json({ ok: true, msg: "CORS test OK" });
+  try {
+    const { name, email, message } = req.body;
+
+    if (!name || !email || !message) {
+      return res.status(400).json({ error: "All fields are required" });
+    }
+
+    // Connect to database
+    await connectToDatabase();
+
+    // Save contact
+    const contact = new Contact({ name, email, message });
+    await contact.save();
+
+    // Send email
+    try {
+      const transporter = await createTransporter();
+      const mailOptions = {
+        from: process.env.EMAIL_USER,
+        to: process.env.EMAIL_TO,
+        subject: `Nuevo mensaje de contacto de ${name}`,
+        html: `
+          <h2>Nuevo mensaje de contacto</h2>
+          <p><strong>Nombre:</strong> ${name}</p>
+          <p><strong>Email:</strong> ${email}</p>
+          <p><strong>Mensaje:</strong> ${message}</p>
+          <p><strong>Fecha:</strong> ${new Date().toLocaleString()}</p>
+        `,
+      };
+      await transporter.sendMail(mailOptions);
+    } catch (emailError) {
+      console.error("Email error:", emailError);
+    }
+
+    res
+      .status(200)
+      .json({ success: true, message: "Message sent successfully!" });
+  } catch (error) {
+    console.error("Contact form error:", error);
+    res
+      .status(500)
+      .json({ error: "Internal server error", details: error.message });
+  }
 }
