@@ -115,7 +115,7 @@ export default async function handler(req, res) {
 
   if (req.method === "OPTIONS") {
     console.log("===> Respondiendo a preflight OPTIONS");
-    res.status(200).end();
+    res.status(200).json({ ok: true, msg: "CORS test OK" });
     return;
   }
 
