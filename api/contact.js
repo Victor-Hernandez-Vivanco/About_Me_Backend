@@ -1,6 +1,6 @@
-import mongoose from "mongoose";
-import nodemailer from "nodemailer";
-import { google } from "googleapis";
+const mongoose = require("mongoose");
+const nodemailer = require("nodemailer");
+const { google } = require("googleapis");
 
 // MongoDB connection
 const MONGODB_URI = process.env.MONGO_URI;
@@ -76,7 +76,7 @@ async function createTransporter() {
   }
 }
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   // Set CORS headers
   res.setHeader(
     "Access-Control-Allow-Origin",
@@ -183,3 +183,5 @@ export default async function handler(req, res) {
     });
   }
 }
+
+module.exports = handler;
