@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import * as nodemailer from "nodemailer";
+import nodemailer from "nodemailer";
 import { google } from "googleapis";
 
 // MongoDB connection
