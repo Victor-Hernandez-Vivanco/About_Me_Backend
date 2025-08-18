@@ -77,12 +77,13 @@ async function createTransporter() {
 }
 
 async function handler(req, res) {
-  console.log("=== REQUEST DEBUG ===");
-  console.log("Method:", req.method);
-  console.log("Headers:", req.headers);
-  console.log("Body:", req.body);
-  console.log("Body type:", typeof req.body);
-  console.log("===================");
+  // Production logging - minimal debug info
+  console.log(
+    "Contact form request:",
+    req.method,
+    "from:",
+    req.headers["x-real-ip"]
+  );
 
   // Set CORS headers
   res.setHeader(
@@ -205,32 +206,16 @@ async function handler(req, res) {
       };
 
       // Enviar email de notificación
-      console.log("Sending notification email to:", process.env.EMAIL_TO);
       const notificationResult = await transporter.sendMail(
         notificationOptions
       );
-      console.log(
-        "Notification email sent successfully:",
-        notificationResult.messageId
-      );
+      console.log("Notification email sent:", notificationResult.messageId);
 
       // Enviar email de confirmación al usuario
-      console.log("Sending confirmation email to user:", email);
-      console.log(
-        "User email matches owner email:",
-        email === process.env.EMAIL_TO
-      );
       const confirmationResult = await transporter.sendMail(
         confirmationOptions
       );
-      console.log(
-        "Confirmation email sent successfully:",
-        confirmationResult.messageId
-      );
-      console.log(
-        "Confirmation email response:",
-        JSON.stringify(confirmationResult, null, 2)
-      );
+      console.log("Confirmation email sent:", confirmationResult.messageId);
     } catch (emailError) {
       console.error("Email sending error:", emailError);
       console.error("Error details:", emailError.message);
