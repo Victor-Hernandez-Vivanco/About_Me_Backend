@@ -178,7 +178,6 @@ const contactSchema = new mongoose.Schema({
 const Contact =
   mongoose.models.Contact || mongoose.model("Contact", contactSchema);
 
-// Email setup with OAuth2
 async function createTransporter() {
   const oauth2Client = new google.auth.OAuth2(
     process.env.CLIENT_ID,
@@ -190,19 +189,33 @@ async function createTransporter() {
     refresh_token: process.env.REFRESH_TOKEN,
   });
 
-  const accessToken = await oauth2Client.getAccessToken();
+  try {
+    const accessTokenResponse = await oauth2Client.getAccessToken();
+    console.log("Access token response:", accessTokenResponse);
 
-  return nodemailer.createTransport({
-    service: "gmail",
-    auth: {
-      type: "OAuth2",
-      user: process.env.EMAIL_USER,
-      clientId: process.env.CLIENT_ID,
-      clientSecret: process.env.CLIENT_SECRET,
-      refreshToken: process.env.REFRESH_TOKEN,
-      accessToken: accessToken.token,
-    },
-  });
+    // Extraer el token correctamente
+    const accessToken =
+      accessTokenResponse.token || accessTokenResponse.access_token;
+
+    if (!accessToken) {
+      throw new Error("Failed to get access token");
+    }
+
+    return nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        type: "OAuth2",
+        user: process.env.EMAIL_USER,
+        clientId: process.env.CLIENT_ID,
+        clientSecret: process.env.CLIENT_SECRET,
+        refreshToken: process.env.REFRESH_TOKEN,
+        accessToken: accessToken,
+      },
+    });
+  } catch (error) {
+    console.error("Error creating transporter:", error);
+    throw error;
+  }
 }
 
 export default async function handler(req, res) {
