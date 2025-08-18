@@ -36,44 +36,44 @@ const contactSchema = new mongoose.Schema({
 const Contact =
   mongoose.models.Contact || mongoose.model("Contact", contactSchema);
 
-async function createTransporter() {
-  const oauth2Client = new google.auth.OAuth2(
-    process.env.CLIENT_ID,
-    process.env.CLIENT_SECRET,
-    "https://developers.google.com/oauthplayground"
-  );
+// Reutilizar OAuth2Client y transporter para mejorar performance en Vercel
+let oauth2Client = null;
+let cachedTransporter = null;
 
-  oauth2Client.setCredentials({
-    refresh_token: process.env.REFRESH_TOKEN,
+async function createTransporter() {
+  if (cachedTransporter) {
+    return cachedTransporter;
+  }
+
+  if (!oauth2Client) {
+    oauth2Client = new google.auth.OAuth2(
+      process.env.CLIENT_ID,
+      process.env.CLIENT_SECRET,
+      "https://developers.google.com/oauthplayground"
+    );
+    oauth2Client.setCredentials({ refresh_token: process.env.REFRESH_TOKEN });
+  }
+
+  const { token } = await oauth2Client.getAccessToken();
+
+  if (!token) {
+    throw new Error("Failed to get access token");
+  }
+
+  const transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      type: "OAuth2",
+      user: process.env.EMAIL_USER,
+      clientId: process.env.CLIENT_ID,
+      clientSecret: process.env.CLIENT_SECRET,
+      refreshToken: process.env.REFRESH_TOKEN,
+      accessToken: token,
+    },
   });
 
-  try {
-    const accessTokenResponse = await oauth2Client.getAccessToken();
-    console.log("Access token response:", accessTokenResponse);
-
-    // Extraer el token correctamente
-    const accessToken =
-      accessTokenResponse.token || accessTokenResponse.access_token;
-
-    if (!accessToken) {
-      throw new Error("Failed to get access token");
-    }
-
-    return nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        type: "OAuth2",
-        user: process.env.EMAIL_USER,
-        clientId: process.env.CLIENT_ID,
-        clientSecret: process.env.CLIENT_SECRET,
-        refreshToken: process.env.REFRESH_TOKEN,
-        accessToken: accessToken,
-      },
-    });
-  } catch (error) {
-    console.error("Error creating transporter:", error);
-    throw error;
-  }
+  cachedTransporter = transporter;
+  return transporter;
 }
 
 async function handler(req, res) {
@@ -85,18 +85,15 @@ async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
-  // Handle preflight OPTIONS request
   if (req.method === "OPTIONS") {
     res.status(200).end();
     return;
   }
 
-  // Only allow POST requests for contact form
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  // Check required environment variables
   const requiredEnvVars = [
     "MONGO_URI",
     "CLIENT_ID",
@@ -120,30 +117,23 @@ async function handler(req, res) {
   try {
     const { name, email, message } = req.body;
 
-    // Validate required fields
     if (!name || !email || !message) {
       return res.status(400).json({ error: "All fields are required" });
     }
 
-    // Connect to database
     await connectToDatabase();
 
-    // Save contact to database
     const contact = new Contact({
       name,
       email,
       message,
     });
-
     await contact.save();
     console.log("Contact saved to database successfully");
 
     // Send email notification
     try {
       console.log("Starting email process...");
-      console.log("EMAIL_TO:", process.env.EMAIL_TO);
-      console.log("EMAIL_USER:", process.env.EMAIL_USER);
-
       const transporter = await createTransporter();
       console.log("Transporter created successfully");
 
@@ -168,7 +158,6 @@ async function handler(req, res) {
       console.error("Email sending error:", emailError);
       console.error("Error details:", emailError.message);
       console.error("Error stack:", emailError.stack);
-      // Don't fail the request if email fails, just log it
     }
 
     res.status(200).json({
@@ -177,7 +166,7 @@ async function handler(req, res) {
     });
   } catch (error) {
     console.error("Contact form error:", error);
-    res.status(500).json({
+    return res.status(500).json({
       error: "Internal server error",
       details: error.message,
     });
