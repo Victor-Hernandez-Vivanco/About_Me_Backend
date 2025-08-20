@@ -6,6 +6,7 @@ import { google } from "googleapis";
 const MONGODB_URI = process.env.MONGO_URI;
 let cachedConnection = null;
 
+// Conexión a la base de datos
 async function connectToDatabase() {
   if (cachedConnection) {
     return cachedConnection;
@@ -33,6 +34,7 @@ const contactSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now },
 });
 
+// Modelo de contacto
 const Contact =
   mongoose.models.Contact || mongoose.model("Contact", contactSchema);
 
@@ -60,6 +62,7 @@ async function createTransporter() {
     throw new Error("Failed to get access token");
   }
 
+  // Crear el transporter
   const transporter = createTransport({
     service: "gmail",
     auth: {
@@ -76,6 +79,7 @@ async function createTransporter() {
   return transporter;
 }
 
+// Manejar las solicitudes de contacto
 async function handler(req, res) {
   // Production logging - minimal debug info
   console.log(
@@ -122,6 +126,7 @@ async function handler(req, res) {
     });
   }
 
+  // Validar el cuerpo de la solicitud
   try {
     const { name, email, message } = req.body;
 
