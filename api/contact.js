@@ -56,6 +56,7 @@ async function createTransporter() {
     oauth2Client.setCredentials({ refresh_token: process.env.REFRESH_TOKEN });
   }
 
+  // Obtener un nuevo token de acceso
   const { token } = await oauth2Client.getAccessToken();
 
   if (!token) {
